@@ -44,7 +44,7 @@ def v1_get_source_id(sources, source_name):
     if not source_ids:
         raise ValueError(f'Source {source_name} does not exist')
     if len(source_ids) > 1:
-        raise ValueError(f'More than one source {source_name} found. This is wrong...')
+        raise ValueError(f'More than one source {source_name} found. This should not happen.')
     return source_ids[0]
 
 def v1_get_fields_by_name(fields):
@@ -154,7 +154,6 @@ def v2_get_updated_field(field_difference):
     {'name': 'field1', 'sort': True, 'facet': True, 'type': 'SOMETYPE'}
     """
     for diff in field_difference[1][KEY_CONFIG_DIFF]:
-        # print(f'\t- "{diff[KEY_V2_CONFIGNAME]}" is "{diff[KEY_V2_VALUE]}" but should be "{diff[KEY_V1_VALUE]}"')
         if field_difference[1][KEY_V2_FIELD]['type'].lower() == 'date' and \
                 diff[KEY_V2_CONFIGNAME].lower() == 'sort' and \
                 diff[KEY_V1_VALUE] == False:
@@ -219,4 +218,4 @@ if __name__ == '__main__':
         v2_client.update_fields(v2_fields_updated)
     else:
         print('No fields to update.')
-    print('Done!')
+    print('Migration completed.')
