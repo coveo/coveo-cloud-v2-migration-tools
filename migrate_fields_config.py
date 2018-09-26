@@ -7,6 +7,8 @@ TODO: Move filtering of type date and sort=false sooner in the process
 """
 
 from cloud_client import *
+from client.environment import *
+from client.cloud_v2 import *
 import argparse
 
 # v1 -> v2
@@ -220,7 +222,7 @@ if __name__ == '__main__':
     common_fields = [v2_mapping for v2_mapping in v2_mappings if v2_mapping in v1_fields.keys()]
     print(f'Common field names between v1 and v2 ({len(common_fields)}): {common_fields}')
 
-    v2_fields_by_name = v2_get_fields_in_use(v2_client.get_fields(), v2_mappings)
+    v2_fields_by_name = v2_get_fields_in_use(v2_client.fields_get(), v2_mappings)
     print(f'Fields to compare in v2 ({len(v2_fields_by_name)}): {v2_fields_by_name}')
 
     fields_difference_to_apply = get_fields_differences(v1_fields, v2_fields_by_name)
@@ -229,7 +231,7 @@ if __name__ == '__main__':
     v2_fields_updated = v2_get_updated_fields(fields_difference_to_apply)
     if v2_fields_updated:
         print(f'CloudV2 fields to update ({len(v2_fields_updated)}): {v2_fields_updated}')
-        v2_client.update_fields(v2_fields_updated)
+        v2_client.fields_update(v2_fields_updated)
     else:
         print('No fields to update.')
     print('Migration completed.')    
