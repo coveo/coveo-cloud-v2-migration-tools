@@ -1,4 +1,4 @@
-from client.environment import Environment, CloudClient
+from client.environment import Environment
 import json
 import requests
 
