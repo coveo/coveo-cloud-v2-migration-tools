@@ -37,7 +37,7 @@ def v1_get_source_id(sources, source_name):
     >>> v1_get_source_id([{'id': '0', 'name': 'FOO'}, {'id': '1', 'name': 'FOO'}], 'foo')
     Traceback (most recent call last):
         ...
-    ValueError: More than one source foo found. This is wrong...
+    ValueError: More than one source foo found. This should not happen.
     """
     source_ids = [source['id'] for source in sources
                   if source['name'].lower() == source_name.lower()]
