@@ -168,8 +168,20 @@ def v2_get_updated_fields(field_differences):
     """
     return [v2_get_updated_field(diff) for diff in field_differences]
 
+def get_unused_fields(fields):
+
+    unusedfields = []
+
+    for item in fields['items']:
+        if not item['sources']: 
+            unusedfields.append(item['name'])
+            print(f'\t-> Field "{item["name"]}" is unused')
+
+    return ",".join(unusedfields)
+
 
 if __name__ == '__main__':
+
     import doctest
     if doctest.testmod().failed > 0:
         exit(-1)
@@ -218,4 +230,9 @@ if __name__ == '__main__':
         v2_client.update_fields(v2_fields_updated)
     else:
         print('No fields to update.')
-    print('Migration completed.')
+    print('Migration completed.')    
+    #Deleting unused fields
+    unusedfields = get_unused_fields(v2_client.get_fields_with_mappings())
+    print('Deleting fields ' + unusedfields)
+    v2_client.delete_fields(unusedfields)
+    print('Field deletion completed.')
