@@ -6,8 +6,7 @@ To be used on a CloudV2 source having the same schema version as CloudV1.
 TODO: Move filtering of type date and sort=false sooner in the process
 """
 
-from cloud_client import *
-from client.environment import *
+from client.cloud_v1 import *
 from client.cloud_v2 import *
 import argparse
 
@@ -210,9 +209,9 @@ if __name__ == '__main__':
     delete_fields = opts.delete_fields
 
     v1_client = CloudV1(env, v1_org_id, v1_access_token)
-    v1_sources = v1_client.get_sources()
+    v1_sources = v1_client.sources_get()
     v1_source_id = v1_get_source_id(v1_sources['sources'], v1_source_name)
-    v1_fields = v1_get_fields_by_name(v1_client.get_fields_for_source(v1_source_id))
+    v1_fields = v1_get_fields_by_name(v1_client.fields_get_for_source(v1_source_id))
     print(f'Fields present in CloudV1 ({len(v1_fields)}): {v1_fields}')
 
     v2_client = CloudV2(env, v2_org_id, v2_access_token)

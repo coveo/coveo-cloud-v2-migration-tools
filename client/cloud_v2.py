@@ -29,6 +29,15 @@ class CloudV2:
     def __get_url(self, url: str):
         return f'{self.platform_url}/{url}'
 
+    def __do_get(self, url):
+        url = self.__get_url(url)
+        print(f'>> Get request to "{url}"')
+        response = requests.get(url, headers=self.headers)
+        print(f'>> Get response (status: {response.status_code}): {response.text}')
+        if not response.ok:
+            raise Exception(f'Error accessing ${url}: ${response.reason}')
+        return json.loads(response.text)
+
     def get_mappings(self, sourceId: str):
         url = self.__get_url(f'rest/organizations/{self.org_id}/sources/{sourceId}/mappings')
         print(f'>> Request to "{url}"')
@@ -73,3 +82,6 @@ class CloudV2:
         print(f'>> Response (status: {response.status_code}): {response.text}')
         if response.status_code not in (200, 204):
             raise Exception(f'[CloudV2] Error creating fields: {response.text}')
+
+    def sources_get(self):
+        return self.__do_get(f'rest/organizations/{self.org_id}/sources')
