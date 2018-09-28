@@ -6,59 +6,48 @@ from client.cloud_v1 import *
 from client.fields import Fields
 
 
-class Auth:
-    def __init__(self, org_id: str, auth_token: str, env: Environment):
-        self.org_id = org_id
-        self.auth_token = auth_token
-        self.env = env
-
-
-def copy_user_fields(v1_auth: Auth, v2_auth: Auth):
-    def v1_get_fields_by_name(v1_fields: list) -> dict:
-        v1_fields_by_name = [(field['name'], field) for field in v1_fields]
+def v1_get_unique_fields(fields: list) -> list:
+    def get_fields_by_name() -> dict:
+        v1_fields_by_name = [(field['name'], field) for field in fields]
         # deduplicate
         return dict([(field[0],
                       [f[1] for f in v1_fields_by_name if f[0] == field[0]])
                      for field in v1_fields_by_name])
 
-    def is_user_field(field: dict) -> bool:
-        return field['fieldOrigin'] == 'CUSTOM'
+    def validate_same_config(fields: list) -> bool:
+        previous = fields[0]
+        for i in range(1, len(fields)):
+            current = fields[i]
+            if not (previous['fieldType'] == fields[i]['fieldType'] and
+                    previous['contentType'] == fields[i]['contentType'] and
+                    previous['fieldQueries'] == fields[i]['fieldQueries'] and
+                    previous['freeTextQueries'] == fields[i]['freeTextQueries'] and
+                    previous['facet'] == fields[i]['facet'] and
+                    previous['multivalueFacet'] == fields[i]['multivalueFacet'] and
+                    previous['sort'] == fields[i]['sort'] and
+                    previous['displayField'] == fields[i]['displayField']):
+                print(
+                    f'SKIPPING FIELD {current["name"]}. Found fields in CloudV1 with the same name but different configurations: {fields}')
+                return False
+            previous = fields[i]
+        return True
 
-    def v1_get_unique_fields(fields: list) -> list:
-        def v1_field_validate_same_config(fields: list) -> bool:
-            previous = fields[0]
-            for i in range(1, len(fields)):
-                current = fields[i]
-                if not (previous['fieldType'] == fields[i]['fieldType'] and
-                        previous['contentType'] == fields[i]['contentType'] and
-                        previous['fieldQueries'] == fields[i]['fieldQueries'] and
-                        previous['freeTextQueries'] == fields[i]['freeTextQueries'] and
-                        previous['facet'] == fields[i]['facet'] and
-                        previous['multivalueFacet'] == fields[i]['multivalueFacet'] and
-                        previous['sort'] == fields[i]['sort'] and
-                        previous['displayField'] == fields[i]['displayField']):
-                    print(
-                        f'SKIPPING FIELD {current["name"]}. Found fields in CloudV1 with the same name but different configurations: {fields}')
-                    return False
-                previous = fields[i]
-            return True
+    fields_by_name = get_fields_by_name()
+    unique_fields_by_name = \
+        [t for t in
+         [(field, fields_by_name[field])
+          if validate_same_config(fields_by_name[field]) else None
+          for field in fields_by_name]
+         if t is not None]
+    return unique_fields_by_name
 
-        fields_by_name = v1_get_fields_by_name(fields)
-        unique_fields_by_name = \
-            [t for t in
-             [(field, fields_by_name[field])
-              if v1_field_validate_same_config(fields_by_name[field]) else None
-              for field in fields_by_name]
-             if t is not None]
-        return unique_fields_by_name
 
-    v1_client = CloudV1(v1_auth.env, v1_auth.org_id, v1_auth.auth_token)
+def v1_field_is_user(field: dict) -> bool:
+    return field['fieldOrigin'] == 'CUSTOM'
 
-    v1_fields = [field for field in v1_client.fields_get() if is_user_field(field)]
-    v1_unique_fields = v1_get_unique_fields(v1_fields)
-    v2_unique_fields = [Fields.v1_to_v2(field[1][0]) for field in v1_unique_fields]
 
-    v2_client = CloudV2(v2_auth.env, v2_auth.org_id, v2_auth.auth_token)
+def copy_user_fields(v1_fields: list, v2_client: CloudV2):
+    v2_unique_fields = [Fields.v1_to_v2(field[1][0]) for field in v1_fields]
     v2_fields = [f['name'] for f in v2_client.fields_get()['items']]
     v2_fields_to_create = list()
     for field in v2_unique_fields:
@@ -70,11 +59,8 @@ def copy_user_fields(v1_auth: Auth, v2_auth: Auth):
     if len(v2_fields_to_create) > 0:
         v2_client.fields_create_batch(v2_fields_to_create)
 
-    v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1] for field_list in v1_unique_fields]))
-    create_v2_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get())
 
-
-def create_v2_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_fields: list, v2_sources: list):
+def v2_create_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_fields: list, v2_sources: list):
     def v2_get_mappings_by_source_id_by_field_name(sources: dict) -> dict:
         # we can't have the same mapping on the same field in CloudV1
         return dict([(sources[source]['v2_id'],
@@ -110,7 +96,10 @@ def create_v2_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_
             v2_client.mappings_common_add(source_id, False, new_mapping)
 
     common_sources = v2_get_sources_by_name()
-    print(f'Common source names ({len(common_sources)}): {json.dumps(common_sources)}')
+    if len(common_sources) == 0:
+        print(f'No common source names between CloudV1 and CloudV2. Cannot copy mappings.')
+    else:
+        print(f'Common source names ({len(common_sources)}): {json.dumps(common_sources)}')
     mappings_by_source_id = v2_get_mappings_by_source_id_by_field_name(common_sources)
     v1_sources_by_id = dict([(source['id'].lower(), source) for source in v1_sources['sources']])
     for field in v1_fields:
@@ -118,18 +107,23 @@ def create_v2_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_
         v2_source_id = v2_source['id']
         v2_source_name = v2_source['name']
         if v2_source_id is None:
-            print(f'SKIPPING MAPPING for \'{field}\' because source \'{v2_source_name}\' does not exist in CloudV2')
+            print(f'SKIPPING MAPPING for \'{field["name"]}\' because source \'{v2_source_name}\' does not exist in CloudV2')
         else:
             v2_create_mapping(field, mappings_by_source_id[v2_source_id], v2_source_id, v2_source_name)
 
+
 if __name__ == '__main__':
     import doctest
-
     if doctest.testmod().failed > 0:
         exit(-1)
 
     env = Environment.DEV
-    v1_auth = Auth('coveodev', '', env)
-    v2_auth = Auth('fmireaultfree0ak52ztjg', '', env)
-    copy_user_fields(v1_auth, v2_auth)
+    v1_client = CloudV1(env, 'coveodev', '')
+    v2_client = CloudV2(env, 'fmireaultfree0ak52ztjg', '')
 
+    v1_user_fields = [field for field in v1_client.fields_get() if v1_field_is_user(field)]
+    v1_user_fields_unique = v1_get_unique_fields(v1_user_fields)
+    copy_user_fields(v1_user_fields_unique, v2_client)
+
+    v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1] for field_list in v1_user_fields_unique]))
+    v2_create_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get())
