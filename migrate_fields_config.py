@@ -168,8 +168,20 @@ def v2_get_updated_fields(field_differences):
     """
     return [v2_get_updated_field(diff) for diff in field_differences]
 
+def get_unused_fields(fields):
+
+    unusedfields = []
+
+    for item in fields['items']:
+        if not item['sources'] and not item['system']: 
+            unusedfields.append(item['name'])
+            print(f'\t-> Field "{item["name"]}" is unused')
+
+    return ",".join(unusedfields)
+
 
 if __name__ == '__main__':
+
     import doctest
     if doctest.testmod().failed > 0:
         exit(-1)
@@ -182,6 +194,7 @@ if __name__ == '__main__':
     parser.add_argument('--v2_org_id', required=True)
     parser.add_argument('--v2_source_id', required=True)
     parser.add_argument('--v2_access_token', required=True)
+    parser.add_argument('--delete_fields', action='store_true')
     opts = parser.parse_args()
 
     # args
@@ -192,6 +205,7 @@ if __name__ == '__main__':
     v2_org_id = opts.v2_org_id
     v2_source_id = opts.v2_source_id
     v2_access_token = opts.v2_access_token
+    delete_fields = opts.delete_fields
 
     v1_client = CloudV1(env, v1_org_id, v1_access_token)
     v1_sources = v1_client.get_sources()
@@ -218,4 +232,10 @@ if __name__ == '__main__':
         v2_client.update_fields(v2_fields_updated)
     else:
         print('No fields to update.')
-    print('Migration completed.')
+    print('Migration completed.')    
+    #Deleting unused fields
+    if delete_fields:
+        unusedfields = get_unused_fields(v2_client.get_fields_with_mappings())
+        print('Deleting fields ' + unusedfields)
+        v2_client.delete_fields(unusedfields)
+        print('Field deletion completed.')

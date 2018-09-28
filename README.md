@@ -8,3 +8,4 @@ Migrate the settings of fields used in a CloudV1 source to CloudV2
                                 --v1_access_token V1_ACCESS_TOKEN --v2_org_id
                                 V2_ORG_ID --v2_source_id V2_SOURCE_ID
                                 --v2_access_token V2_ACCESS_TOKEN`
+                                --delete_fields [OPTIONAL_PARAMETER_TO_DELETE_UNUSED_FIELDS]
