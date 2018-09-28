@@ -38,7 +38,7 @@ def v1_get_source_id(sources, source_name):
     >>> v1_get_source_id([{'id': '0', 'name': 'FOO'}, {'id': '1', 'name': 'FOO'}], 'foo')
     Traceback (most recent call last):
         ...
-    ValueError: More than one source foo found. This is wrong...
+    ValueError: More than one source foo found. This should not happen.
     """
     source_ids = [source['id'] for source in sources
                   if source['name'].lower() == source_name.lower()]
@@ -169,16 +169,14 @@ def v2_get_updated_fields(field_differences):
     """
     return [v2_get_updated_field(diff) for diff in field_differences]
 
+
 def get_unused_fields(fields):
-
-    unusedfields = []
-
+    unused_fields = []
     for item in fields['items']:
         if not item['sources'] and not item['system']: 
-            unusedfields.append(item['name'])
+            unused_fields.append(item['name'])
             print(f'\t-> Field "{item["name"]}" is unused')
-
-    return ",".join(unusedfields)
+    return ",".join(unused_fields)
 
 
 if __name__ == '__main__':
@@ -233,10 +231,11 @@ if __name__ == '__main__':
         v2_client.fields_update(v2_fields_updated)
     else:
         print('No fields to update.')
-    print('Migration completed.')    
-    #Deleting unused fields
+    print('Migration completed.')
+
+    # Deleting unused fields
     if delete_fields:
-        unusedfields = get_unused_fields(v2_client.get_fields_with_mappings())
-        print('Deleting fields ' + unusedfields)
-        v2_client.delete_fields(unusedfields)
+        unused_fields = get_unused_fields(v2_client.fields_get_with_mappings())
+        print('Deleting fields ' + unused_fields)
+        v2_client.fields_delete(unused_fields)
         print('Field deletion completed.')
