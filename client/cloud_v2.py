@@ -9,6 +9,10 @@ class CloudV2(CloudClient):
     """
     FIELDS_BY_PAGE = 500
 
+    def __init__(self, env: Environment, org_id: str, access_token: str):
+        super().__init__('CloudV2', env, org_id, access_token)
+        self.__set_platform_url(env)
+
     def __set_platform_url(self, env: Environment):
         if env == env.DEV:
             url = 'platformdev.cloud.coveo.com'
@@ -20,10 +24,6 @@ class CloudV2(CloudClient):
             raise ValueError(f'Unsupported environment: {env}')
         self.platform_url = f'https://{url}'
         print(f'[CloudV2] Using environement {env}')
-
-    def __init__(self, env: Environment, org_id: str, access_token: str):
-        super().__init__('CloudV2', env, org_id, access_token)
-        self.__set_platform_url(env)
 
     def mappings_get(self, source_id: str):
         return self.do_get(f'rest/organizations/{self.org_id}/sources/{source_id}/mappings')
