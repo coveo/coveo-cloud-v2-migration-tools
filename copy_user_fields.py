@@ -57,7 +57,7 @@ def copy_user_fields(v1_auth: Auth, v2_auth: Auth):
     v1_valid_fields = v1_get_valid_fields(v1_fields)
     v2_client = CloudV2(v2_auth.env, v2_auth.org_id, v2_auth.auth_token)
     v2_fields_to_create = [Fields.v1_to_v2(field[1][0]) for field in v1_valid_fields]
-    v2_client.fields_create_batch(v2_fields_to_create)
+    # v2_client.fields_create_batch(v2_fields_to_create)
 
     v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1] for field_list in v1_valid_fields]))
     create_v2_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get())
@@ -80,29 +80,36 @@ def create_v2_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_
                      for v2_source_key in v2_sources_by_name.keys()
                      if v2_source_key in v1_sources_by_name])
 
+    def v2_get_source_used_field(field: dict, common_sources: dict) -> dict:
+        # v1 source id -> v1 source name == v2 source name -> v2 source id
+        v1_source_id = field['sourceId']
+        v1_source_name = v1_sources_by_id[v1_source_id]['name']
+        v2_source_id = None
+        if v1_source_name.lower() in common_sources:
+            v2_source_id = common_sources[v1_source_name.lower()]['v2_id']
+        return {'id': v2_source_id, 'name': v1_source_name}
+
+    def v2_create_mapping(field: dict, mappings: dict, source_id: str, source_name: str) -> None:
+        new_mapping = {'content': [f'%[{field["metadataName"]}]'], 'field': f'{field["name"]}'}
+        new_mapping_exists = new_mapping['field'].lower() in mappings
+        if new_mapping_exists:
+            print(f'SKIPPING MAPPING \'{new_mapping}\' because it\'s already present in source \'{source_name}\'')
+        else:
+            print(f'ADD MAPPING: {new_mapping}')
+            v2_client.mappings_common_add(source_id, False, new_mapping)
+
     common_sources = v2_get_sources_by_name()
     print(f'Common source names ({len(common_sources)}): {json.dumps(common_sources)}')
-
     mappings_by_source_id = v2_get_mappings_by_source_id_by_field_name(common_sources)
-
     v1_sources_by_id = dict([(source['id'].lower(), source) for source in v1_sources['sources']])
     for field in v1_fields:
-        # v1 source id -> v1 source name -> v2 source name
-        v1_source_id = field['sourceId']
-        v1_source_name = v1_sources_by_id[v1_source_id]['name'].lower()
-        if v1_source_name in common_sources:
-            v2_source_id = common_sources[v1_source_name]['v2_id']
-            mapping_to_add = {'content': [f'%[{field["metadataName"]}]'], 'field': f'{field["name"]}'}
-            mapping_to_add_already_exists = mapping_to_add['field'].lower() in mappings_by_source_id[v2_source_id]
-            if mapping_to_add_already_exists:
-                print(f'SKIPPING MAPPING \'{mapping_to_add}\' because '
-                      f'it\'s already present in source \'{v1_source_name}\'')
-            else:
-                print(f'ADD MAPPING: {mapping_to_add}')
-                v2_client.mappings_common_add(v2_source_id, False, mapping_to_add)
+        v2_source = v2_get_source_used_field(field, common_sources)
+        v2_source_id = v2_source['id']
+        v2_source_name = v2_source['name']
+        if v2_source_id is None:
+            print(f'SKIPPING MAPPING for \'{field}\' because source \'{v2_source_name}\' does not exist in CloudV2')
         else:
-            print(f'SKIPPING MAPPING for \'{field}\' because source \'{v1_source_name}\' does not exist in CloudV2')
-
+            v2_create_mapping(field, mappings_by_source_id[v2_source_id], v2_source_id, v2_source_name)
 
 if __name__ == '__main__':
     import doctest
