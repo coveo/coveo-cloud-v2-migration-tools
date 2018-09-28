@@ -1,4 +1,8 @@
 #! /usr/bin/python3
+"""
+Copy user defined fields and their mappings from a CloudV1 to a CloudV2 organization
+"""
+import argparse
 import itertools
 
 from client.cloud_v2 import *
@@ -117,13 +121,22 @@ if __name__ == '__main__':
     if doctest.testmod().failed > 0:
         exit(-1)
 
-    env = Environment.DEV
-    v1_client = CloudV1(env, 'coveodev', '')
-    v2_client = CloudV2(env, 'fmireaultfree0ak52ztjg', '')
+    parser = argparse.ArgumentParser(description='Copy user fields and their mappings from CloudV1 to CloudV2')
+    parser.add_argument('--env', required=True, type=Environment, choices=list(Environment))
+    parser.add_argument('--v1_org_id', required=True)
+    parser.add_argument('--v1_access_token', required=True)
+    parser.add_argument('--v2_org_id', required=True)
+    parser.add_argument('--v2_access_token', required=True)
+    opts = parser.parse_args()
+
+    v1_client = CloudV1(opts.env, opts.v1_org_id, opts.v1_access_token)
+    v2_client = CloudV2(opts.env, opts.v2_org_id, opts.v2_access_token)
 
     v1_user_fields = [field for field in v1_client.fields_get() if v1_field_is_user(field)]
     v1_user_fields_unique = v1_get_unique_fields(v1_user_fields)
     copy_user_fields(v1_user_fields_unique, v2_client)
+    print('All users fields copied.')
 
     v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1] for field_list in v1_user_fields_unique]))
     v2_create_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get())
+    print('All mappings created.')
