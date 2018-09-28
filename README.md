@@ -11,4 +11,4 @@ Coveo Cloud V2 Migration Tools
 
 `copy_user_fields.py --env {DEV,QA,PROD} --v1_org_id V1_ORG_ID --v1_access_token V1_ACCESS_TOKEN --v2_org_id 
 V2_ORG_ID --v2_access_token V2_ACCESS_TOKEN`
-                                
+
