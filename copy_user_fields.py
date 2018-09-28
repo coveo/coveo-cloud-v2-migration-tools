@@ -24,7 +24,7 @@ def copy_user_fields(v1_auth: Auth, v2_auth: Auth):
     def is_user_field(field: dict) -> bool:
         return field['fieldOrigin'] == 'CUSTOM'
 
-    def v1_get_valid_fields(fields: list) -> list:
+    def v1_get_unique_fields(fields: list) -> list:
         def v1_field_validate_same_config(fields: list) -> bool:
             previous = fields[0]
             for i in range(1, len(fields)):
@@ -44,22 +44,33 @@ def copy_user_fields(v1_auth: Auth, v2_auth: Auth):
             return True
 
         fields_by_name = v1_get_fields_by_name(fields)
-        valid_fields_by_name = \
+        unique_fields_by_name = \
             [t for t in
              [(field, fields_by_name[field])
               if v1_field_validate_same_config(fields_by_name[field]) else None
               for field in fields_by_name]
              if t is not None]
-        return valid_fields_by_name
+        return unique_fields_by_name
 
     v1_client = CloudV1(v1_auth.env, v1_auth.org_id, v1_auth.auth_token)
-    v1_fields = [field for field in v1_client.fields_get() if is_user_field(field)]
-    v1_valid_fields = v1_get_valid_fields(v1_fields)
-    v2_client = CloudV2(v2_auth.env, v2_auth.org_id, v2_auth.auth_token)
-    v2_fields_to_create = [Fields.v1_to_v2(field[1][0]) for field in v1_valid_fields]
-    # v2_client.fields_create_batch(v2_fields_to_create)
 
-    v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1] for field_list in v1_valid_fields]))
+    v1_fields = [field for field in v1_client.fields_get() if is_user_field(field)]
+    v1_unique_fields = v1_get_unique_fields(v1_fields)
+    v2_unique_fields = [Fields.v1_to_v2(field[1][0]) for field in v1_unique_fields]
+
+    v2_client = CloudV2(v2_auth.env, v2_auth.org_id, v2_auth.auth_token)
+    v2_fields = [f['name'] for f in v2_client.fields_get()['items']]
+    v2_fields_to_create = list()
+    for field in v2_unique_fields:
+        if field['name'] in v2_fields:
+            print(f'SKIPPING FIELD \'{field["name"]}\' because it already exists in org: {field}')
+        else:
+            v2_fields_to_create.append(field)
+
+    if len(v2_fields_to_create) > 0:
+        v2_client.fields_create_batch(v2_fields_to_create)
+
+    v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1] for field_list in v1_unique_fields]))
     create_v2_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get())
 
 
@@ -121,3 +132,4 @@ if __name__ == '__main__':
     v1_auth = Auth('coveodev', '', env)
     v2_auth = Auth('fmireaultfree0ak52ztjg', '', env)
     copy_user_fields(v1_auth, v2_auth)
+
