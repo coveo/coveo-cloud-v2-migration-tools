@@ -215,7 +215,7 @@ if __name__ == '__main__':
     print(f'Fields present in CloudV1 ({len(v1_fields)}): {v1_fields}')
 
     v2_client = CloudV2(env, v2_org_id, v2_access_token)
-    v2_mappings = v2_get_mappings_fieldname(v2_client.get_mappings(v2_source_id))
+    v2_mappings = v2_get_mappings_fieldname(v2_client.mappings_get(v2_source_id))
     print(f'Mapping present in CloudV2 ({len(v2_mappings)}): {v2_mappings}')
 
     common_fields = [v2_mapping for v2_mapping in v2_mappings if v2_mapping in v1_fields.keys()]

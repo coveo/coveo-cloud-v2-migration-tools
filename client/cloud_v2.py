@@ -35,17 +35,30 @@ class CloudV2:
         response = requests.get(url, headers=self.headers)
         print(f'>> Get response (status: {response.status_code}): {response.text}')
         if not response.ok:
-            raise Exception(f'Error accessing ${url}: ${response.reason}')
+            raise Exception(f'Error accessing {url}: {response.reason}')
         return json.loads(response.text)
 
-    def get_mappings(self, sourceId: str):
-        url = self.__get_url(f'rest/organizations/{self.org_id}/sources/{sourceId}/mappings')
+    def __do_post(self, url, data):
+        url = self.__get_url(url)
+        self.headers['Content-Type'] = 'application/json'
+        print(f'>> Post request to "{url}", data:{json.dumps(data)}')
+        response = requests.post(url, data=json.dumps(data), headers=self.headers)
+        print(f'>> Post response (status: {response.status_code}): {response.text}')
+        if not response.ok:
+            raise Exception(f'Error accessing {url}: {response.reason}')
+        return json.loads(response.text)
+
+    def mappings_get(self, source_id: str):
+        url = self.__get_url(f'rest/organizations/{self.org_id}/sources/{source_id}/mappings')
         print(f'>> Request to "{url}"')
         response = requests.get(url, headers=self.headers)
         print(f'>> Response (status: {response.status_code}): {response.text}')
         if response.status_code != 200:
-            raise Exception(f'[CloudV2] Error retrieving mappings for org id {self.org_id} and source id {sourceId}')
+            raise Exception(f'[CloudV2] Error retrieving mappings for org id {self.org_id} and source id {source_id}')
         return json.loads(response.text)
+
+    def mappings_common_add(self, source_id: str, rebuild: bool, mapping: dict):
+        return self.__do_post(f'rest/organizations/{self.org_id}/sources/{source_id}/mappings/common/rules?rebuild={rebuild}', mapping)
 
     def __fields_get_by_page(self, page_number: int):
         url = self.__get_url(f'rest/organizations/fmireaultfree0ak52ztjg/indexes/page/fields?page={page_number}&perPage={CloudV2.FIELDS_BY_PAGE}')
