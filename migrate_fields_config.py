@@ -173,7 +173,7 @@ def get_unused_fields(fields):
     unusedfields = []
 
     for item in fields['items']:
-        if not item['sources']: 
+        if not item['sources'] and not item['system']: 
             unusedfields.append(item['name'])
             print(f'\t-> Field "{item["name"]}" is unused')
 
