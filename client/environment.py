@@ -34,7 +34,6 @@ class CloudClient:
     def __do_request(self, method: str, url: str, data):
         url = self.__get_url(url)
         print(f'>> {method} request to "{url}"')
-        # response = requests.get(url, headers=self.headers)
         response = requests.request(method, url, headers=self.headers, data=json.dumps(data))
         print(f'>> {method} response (status: {response.status_code}): {response.text}')
         if not response.ok:

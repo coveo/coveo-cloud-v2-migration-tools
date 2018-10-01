@@ -29,4 +29,4 @@ class CloudV1(CloudClient):
 
     def fields_get_for_source(self, source_id):
         fields = self.fields_get()
-        return [field for field in fields if field["sourceId"] == source_id]
+        return filter(lambda field: field['sourceId' == source_id], fields)
