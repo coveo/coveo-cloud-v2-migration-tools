@@ -32,7 +32,6 @@ def v1_get_unique_fields(fields: list) -> list:
         new_field = {'fieldQueries': False, 'freeTextQueries': False, 'facet': False, 'multivalueFacet': False, 'sort': False, 'displayField': False}
         mappings = list()
         for field in fields:
-            print(field)
             mapping = {'name': field['name'], 'metadataName': field['metadataName'], 'sourceId': field['sourceId']}
             for flag in new_field:
                 if type(new_field[flag]) == bool:
@@ -113,7 +112,7 @@ def v2_create_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_
         new_mapping = {'content': [f'%[{field["metadataName"]}]'], 'field': f'{field["name"]}'}
         new_mapping_exists = new_mapping['field'].lower() in mappings
         if new_mapping_exists:
-            print(f'SKIPPING MAPPING \'{new_mapping}\' because it\'s already present in source \'{source_name}\'')
+            print(f'SKIPPING MAPPING {new_mapping} because it\'s already present in source \'{source_name}\'')
         elif not dry_run:
             print(f'ADD MAPPING: {new_mapping}')
             v2_client.mappings_common_add(source_id, False, new_mapping)
@@ -159,6 +158,5 @@ if __name__ == '__main__':
     print('All users fields copied.')
 
     v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1]['mappings'] for field_list in v1_user_fields_unique]))
-    print(f'v1_fields_mapping: {json.dumps(v1_fields_mapping)}')
     v2_create_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get(), dry_run)
     print('All mappings created.')
