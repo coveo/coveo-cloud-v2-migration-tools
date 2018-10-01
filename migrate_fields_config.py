@@ -6,7 +6,8 @@ To be used on a CloudV2 source having the same schema version as CloudV1.
 TODO: Move filtering of type date and sort=false sooner in the process
 """
 
-from cloud_client import *
+from client.cloud_v1 import *
+from client.cloud_v2 import *
 import argparse
 
 # v1 -> v2
@@ -37,7 +38,7 @@ def v1_get_source_id(sources, source_name):
     >>> v1_get_source_id([{'id': '0', 'name': 'FOO'}, {'id': '1', 'name': 'FOO'}], 'foo')
     Traceback (most recent call last):
         ...
-    ValueError: More than one source foo found. This is wrong...
+    ValueError: More than one source foo found. This should not happen.
     """
     source_ids = [source['id'] for source in sources
                   if source['name'].lower() == source_name.lower()]
@@ -168,16 +169,14 @@ def v2_get_updated_fields(field_differences):
     """
     return [v2_get_updated_field(diff) for diff in field_differences]
 
+
 def get_unused_fields(fields):
-
-    unusedfields = []
-
+    unused_fields = []
     for item in fields['items']:
         if not item['sources'] and not item['system']: 
-            unusedfields.append(item['name'])
+            unused_fields.append(item['name'])
             print(f'\t-> Field "{item["name"]}" is unused')
-
-    return ",".join(unusedfields)
+    return ",".join(unused_fields)
 
 
 if __name__ == '__main__':
@@ -208,19 +207,19 @@ if __name__ == '__main__':
     delete_fields = opts.delete_fields
 
     v1_client = CloudV1(env, v1_org_id, v1_access_token)
-    v1_sources = v1_client.get_sources()
+    v1_sources = v1_client.sources_get()
     v1_source_id = v1_get_source_id(v1_sources['sources'], v1_source_name)
-    v1_fields = v1_get_fields_by_name(v1_client.get_fields_for_source(v1_source_id))
+    v1_fields = v1_get_fields_by_name(v1_client.fields_get_for_source(v1_source_id))
     print(f'Fields present in CloudV1 ({len(v1_fields)}): {v1_fields}')
 
     v2_client = CloudV2(env, v2_org_id, v2_access_token)
-    v2_mappings = v2_get_mappings_fieldname(v2_client.get_mappings(v2_source_id))
+    v2_mappings = v2_get_mappings_fieldname(v2_client.mappings_get(v2_source_id))
     print(f'Mapping present in CloudV2 ({len(v2_mappings)}): {v2_mappings}')
 
     common_fields = [v2_mapping for v2_mapping in v2_mappings if v2_mapping in v1_fields.keys()]
     print(f'Common field names between v1 and v2 ({len(common_fields)}): {common_fields}')
 
-    v2_fields_by_name = v2_get_fields_in_use(v2_client.get_fields(), v2_mappings)
+    v2_fields_by_name = v2_get_fields_in_use(v2_client.fields_get(), v2_mappings)
     print(f'Fields to compare in v2 ({len(v2_fields_by_name)}): {v2_fields_by_name}')
 
     fields_difference_to_apply = get_fields_differences(v1_fields, v2_fields_by_name)
@@ -229,13 +228,14 @@ if __name__ == '__main__':
     v2_fields_updated = v2_get_updated_fields(fields_difference_to_apply)
     if v2_fields_updated:
         print(f'CloudV2 fields to update ({len(v2_fields_updated)}): {v2_fields_updated}')
-        v2_client.update_fields(v2_fields_updated)
+        v2_client.fields_update(v2_fields_updated)
     else:
         print('No fields to update.')
-    print('Migration completed.')    
-    #Deleting unused fields
+    print('Migration completed.')
+
+    # Deleting unused fields
     if delete_fields:
-        unusedfields = get_unused_fields(v2_client.get_fields_with_mappings())
-        print('Deleting fields ' + unusedfields)
-        v2_client.delete_fields(unusedfields)
+        unused_fields = get_unused_fields(v2_client.fields_get_with_mappings())
+        print('Deleting fields ' + unused_fields)
+        v2_client.fields_delete(unused_fields)
         print('Field deletion completed.')
