@@ -11,38 +11,53 @@ from client.fields import Fields
 
 
 def v1_get_unique_fields(fields: list) -> list:
+    """
+    # >>> fields = [{'name': 'f0', 'fieldType': 'STRING', 'contentType': 'METADATA', 'sort': True, 'facet': False}, \
+    # {'name': 'f0', 'fieldType': 'STRING', 'contentType': 'METADATA', 'sort': False, 'facet': True}, \
+    # {'name': 'f1', 'fieldType': 'STRING', 'contentType': 'METADATA'}]
+    # >>> v1_get_unique_fields(fields)
+    # [('f0', [{'name': 'f0', 'fieldType': 'STRING', 'contentType': 'METADATA', 'sort': True, 'facet': False}, {'name': 'f0', 'fieldType': 'STRING', 'contentType': 'METADATA', 'sort': False, 'facet': True}]), ('f1', [{'name': 'f1', 'fieldType': 'STRING', 'contentType': 'METADATA'}])]
+    """
     def get_fields_by_name() -> dict:
-        v1_fields_by_name = [(field['name'], field) for field in fields]
-        # deduplicate
-        return dict([(field[0],
-                      [f[1] for f in v1_fields_by_name if f[0] == field[0]])
-                     for field in v1_fields_by_name])
+        fields_by_name = dict()
+        for field in fields:
+            name = field['name']
+            if name in fields_by_name:
+                fields_by_name[name].append(field)
+            else:
+                fields_by_name[name] = [field]
+        return fields_by_name
 
-    def validate_same_config(fields: list) -> bool:
-        previous = fields[0]
-        for i in range(1, len(fields)):
-            current = fields[i]
-            if not (previous['fieldType'] == fields[i]['fieldType'] and
-                    previous['contentType'] == fields[i]['contentType'] and
-                    previous['fieldQueries'] == fields[i]['fieldQueries'] and
-                    previous['freeTextQueries'] == fields[i]['freeTextQueries'] and
-                    previous['facet'] == fields[i]['facet'] and
-                    previous['multivalueFacet'] == fields[i]['multivalueFacet'] and
-                    previous['sort'] == fields[i]['sort'] and
-                    previous['displayField'] == fields[i]['displayField']):
-                print(
-                    f'SKIPPING FIELD {current["name"]}. Found fields in CloudV1 with the same name but different configurations: {fields}')
-                return False
-            previous = fields[i]
+    def merge_fields_config(fields: list) -> dict:
+        new_field = {'fieldQueries': False, 'freeTextQueries': False, 'facet': False, 'multivalueFacet': False, 'sort': False, 'displayField': False}
+        mappings = list()
+        for field in fields:
+            mapping = {'name': field['name'], 'metadataName': field['metadataName'], 'sourceId': field['sourceId']}
+            for flag in new_field:
+                new_field[flag] |= field[flag]
+            mappings.append(mapping)
+        new_field['mappings'] = mappings
+        return new_field
+
+    def validate_field_config(fields: list) -> bool:
+        expected_length = len(fields)
+        field_type = fields[0]['fieldType']
+        content_type = fields[0]['contentType']
+        if expected_length != len(list(filter(lambda f: f['fieldType'] == field_type and
+                                                        f['contentType'] == content_type, fields))):
+            return False
         return True
 
     fields_by_name = get_fields_by_name()
-    unique_fields_by_name = \
-        [t for t in
-         [(field, fields_by_name[field])
-          if validate_same_config(fields_by_name[field]) else None
-          for field in fields_by_name]
-         if t is not None]
+    unique_fields_by_name = list()
+    for field_name in fields_by_name:
+        field = fields_by_name[field_name]
+        if validate_field_config(field):
+            merged = merge_fields_config(field)
+            merged['name'] = field_name
+            merged['fieldType'] = field[0]['fieldType']
+            merged['contentType'] = field[0]['contentType']
+            unique_fields_by_name.append((field_name, merged))
     return unique_fields_by_name
 
 
@@ -50,21 +65,22 @@ def v1_field_is_user(field: dict) -> bool:
     return field['fieldOrigin'] == 'CUSTOM'
 
 
-def copy_user_fields(v1_fields: list, v2_client: CloudV2):
-    v2_unique_fields = [Fields.v1_to_v2(field[1][0]) for field in v1_fields]
+def copy_user_fields(v1_fields: list, v2_client: CloudV2, dry_run: bool):
+    v2_unique_fields = [Fields.v1_to_v2(field[1]) for field in v1_fields]
     v2_fields = [f['name'] for f in v2_client.fields_get()['items']]
     v2_fields_to_create = list()
     for field in v2_unique_fields:
         if field['name'] in v2_fields:
             print(f'SKIPPING FIELD \'{field["name"]}\' because it already exists in org: {field}')
         else:
+            print(f'ADDING FIELD \'{field["name"]}\': {field}')
             v2_fields_to_create.append(field)
 
-    if len(v2_fields_to_create) > 0:
+    if not dry_run and len(v2_fields_to_create) > 0:
         v2_client.fields_create_batch(v2_fields_to_create)
 
 
-def v2_create_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_fields: list, v2_sources: list):
+def v2_create_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_fields: list, v2_sources: list, dry_run: bool):
     def v2_get_mappings_by_source_id_by_field_name(sources: dict) -> dict:
         # we can't have the same mapping on the same field in CloudV1
         return dict([(sources[source]['v2_id'],
@@ -94,8 +110,8 @@ def v2_create_mapping_from_v1_fields(v2_client: CloudV2, v1_sources: object, v1_
         new_mapping = {'content': [f'%[{field["metadataName"]}]'], 'field': f'{field["name"]}'}
         new_mapping_exists = new_mapping['field'].lower() in mappings
         if new_mapping_exists:
-            print(f'SKIPPING MAPPING \'{new_mapping}\' because it\'s already present in source \'{source_name}\'')
-        else:
+            print(f'SKIPPING MAPPING {new_mapping} because it\'s already present in source \'{source_name}\'')
+        elif not dry_run:
             print(f'ADD MAPPING: {new_mapping}')
             v2_client.mappings_common_add(source_id, False, new_mapping)
 
@@ -127,16 +143,18 @@ if __name__ == '__main__':
     parser.add_argument('--v1_access_token', required=True)
     parser.add_argument('--v2_org_id', required=True)
     parser.add_argument('--v2_access_token', required=True)
+    parser.add_argument('--dry-run', action='store_false')
     opts = parser.parse_args()
 
+    dry_run = opts.dry_run
     v1_client = CloudV1(opts.env, opts.v1_org_id, opts.v1_access_token)
     v2_client = CloudV2(opts.env, opts.v2_org_id, opts.v2_access_token)
 
     v1_user_fields = [field for field in v1_client.fields_get() if v1_field_is_user(field)]
     v1_user_fields_unique = v1_get_unique_fields(v1_user_fields)
-    copy_user_fields(v1_user_fields_unique, v2_client)
+    copy_user_fields(v1_user_fields_unique, v2_client, dry_run)
     print('All users fields copied.')
 
-    v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1] for field_list in v1_user_fields_unique]))
-    v2_create_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get())
+    v1_fields_mapping = list(itertools.chain.from_iterable([field_list[1]['mappings'] for field_list in v1_user_fields_unique]))
+    v2_create_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get(), dry_run)
     print('All mappings created.')

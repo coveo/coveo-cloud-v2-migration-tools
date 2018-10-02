@@ -231,9 +231,9 @@ if __name__ == '__main__':
         v2_client.fields_update(v2_fields_updated)
     else:
         print('No fields to update.')
-    print('Migration completed.')
+    print('Migration completed.')    
 
-    # Deleting unused fields
+    #Deleting unused fields
     if delete_fields:
         unused_fields = get_unused_fields(v2_client.fields_get_with_mappings())
         print('Deleting fields ' + unused_fields)
