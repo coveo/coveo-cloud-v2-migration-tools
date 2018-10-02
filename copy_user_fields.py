@@ -34,8 +34,7 @@ def v1_get_unique_fields(fields: list) -> list:
         for field in fields:
             mapping = {'name': field['name'], 'metadataName': field['metadataName'], 'sourceId': field['sourceId']}
             for flag in new_field:
-                if type(new_field[flag]) == bool:
-                    new_field[flag] |= field[flag]
+                new_field[flag] |= field[flag]
             mappings.append(mapping)
         new_field['mappings'] = mappings
         return new_field
@@ -43,10 +42,9 @@ def v1_get_unique_fields(fields: list) -> list:
     def validate_field_config(fields: list) -> bool:
         expected_length = len(fields)
         field_type = fields[0]['fieldType']
-        if expected_length != len(list(filter(lambda f: f['fieldType'] == field_type, fields))):
-            return False
         content_type = fields[0]['contentType']
-        if expected_length != len(list(filter(lambda f: f['contentType'] == content_type, fields))):
+        if expected_length != len(list(filter(lambda f: f['fieldType'] == field_type and
+                                                        f['contentType'] == content_type, fields))):
             return False
         return True
 
