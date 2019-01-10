@@ -59,6 +59,7 @@ class CloudV2(CloudClient):
         return self.do_put(f'rest/organizations/{self.org_id}/indexes/fields/batch/update', fields)
 
     def fields_create_batch(self, fields: list):
+        print (json.dumps(fields))
         return self.do_post(f'rest/organizations/{self.org_id}/indexes/fields/batch/create', fields)
 
     def fields_delete(self, unused_fields):
@@ -66,3 +67,54 @@ class CloudV2(CloudClient):
 
     def sources_get(self):
         return self.do_get(f'rest/organizations/{self.org_id}/sources')
+
+    def sources_delete(self, mid:str):
+      url = f'rest/organizations/{self.org_id}/sources/{mid}'
+      #print(url)
+      return self.do_delete(url)
+
+    def source_create(self, config):
+      if config['MethodToUse']=='RAW':
+        return self.do_post(f'rest/organizations/{self.org_id}/sources/raw?rebuild=false&updateSecurityProviders=false',config)
+      else:
+        return self.do_post(f'rest/organizations/{self.org_id}/sources?rebuild=false&updateSecurityProviders=false',config)
+
+    def schedule_create(self, source_id, fields: dict):
+        return self.do_post(f'rest/organizations/{self.org_id}/sources/{source_id}/schedules', fields)
+
+    def schedule_get(self, source_id):
+        return self.do_get(f'rest/organizations/{self.org_id}/sources/{source_id}/schedules')
+
+    def schedule_delete(self, source_id, schedule_id):
+        return self.do_delete(f'rest/organizations/{self.org_id}/sources/{source_id}/schedules/{schedule_id}')
+
+    def dimension_create(self, name, event, fields: dict):
+      #https://platform.cloud.coveo.com/rest/ua/v15/dimensions/custom?org=asdf&name=myname&event=searches&updatePastEvents=false
+        return self.do_post(f'rest/ua/v15/dimensions/custom?org={self.org_id}&name={name}{event}', fields)
+
+    def pipeline_create(self, fields: dict):
+        return self.do_post(f'rest/search/v1/admin/pipelines/?organizationId={self.org_id}', fields)
+
+    def pipelines_get(self):
+        return self.do_get(f'rest/search/admin/pipelines/?organizationId={self.org_id}')
+
+    def pipeline_delete(self, pipeline_id):
+        return self.do_delete(f'rest/search/v1/admin/pipelines/{pipeline_id}?organizationId={self.org_id}')
+
+    def pipeline_statements_get(self, pipeline_id):
+        return self.do_get(f'rest/search/admin/pipelines/{pipeline_id}/statements?perPage=5000')
+
+    def pipeline_statement_create(self, pipeline_id, fields: dict):
+        return self.do_post(f'rest/search/v1/admin/pipelines/{pipeline_id}/statements?organizationId={self.org_id}', fields)
+
+    def pipeline_statement_delete(self, pipeline_id, statement_id):
+        return self.do_delete(f'rest/search/v1/admin/pipelines/{pipeline_id}/statements/{statement_id}?organizationId={self.org_id}')
+
+    def statement_create(self, fields: dict):
+        return self.do_post(f'rest/search/v1/admin/pipelines/statements?organizationId={self.org_id}', fields)
+
+    def statements_get(self):
+        return self.do_get(f'rest/search/admin/pipelines/statements?organizationId={self.org_id}&perPage=5000')
+
+    def statement_delete(self, statement_id):
+        return self.do_delete(f'rest/search/v1/admin/pipelines/statements/{statement_id}?organizationId={self.org_id}')
