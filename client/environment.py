@@ -33,16 +33,37 @@ class CloudClient:
 
     def __do_request(self, method: str, url: str, data):
         url = self.__get_url(url)
-        print(f'>> {method} request to "{url}"')
+        #print(f'>> {method} request to "{url}"')
         response = requests.request(method, url, headers=self.headers, data=json.dumps(data))
-        print(f'>> {method} response (status: {response.status_code}): {response.text}')
+        #print(f'>> {method} response (status: {response.status_code}): {response.text}')
         if not response.ok:
-            raise Exception(f'Error accessing {url}: {response.reason}')
+            print (response.text)
+            if response.text:
+              return json.loads(response.text)# response#raise Exception(f'Error accessing {url}: {response.reason}')
+            else:
+              return json.loads(response)
+        if response.text:
+            return json.loads(response.text)
+
+    def __do_request_direct(self, method: str, url: str, data):
+        #url = self.__get_url(url)
+        #print(f'>> {method} request to "{url}"')
+        response = requests.request(method, url, headers=self.headers, data=json.dumps(data))
+        #print(f'>> {method} response (status: {response.status_code}): {response.text}')
+        if not response.ok:
+            print (response.text)
+            if response.text:
+              return json.loads(response.text)# response#raise Exception(f'Error accessing {url}: {response.reason}')
+            else:
+              return json.loads(response)
         if response.text:
             return json.loads(response.text)
 
     def do_get(self, url):
         return self.__do_request('get', url, None)
+
+    def do_get_direct(self, url):
+        return self.__do_request_direct('get', url, None)
 
     def do_post(self, url, data):
         return self.__do_request('post', url, data)
