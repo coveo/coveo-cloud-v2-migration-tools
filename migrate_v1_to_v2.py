@@ -15,6 +15,7 @@ from client.fields import Fields
 import argparse
 import jiphy
 import jsbeautifier
+import os
 
 # v1 -> v2
 FIELDS_KEYS_V1_V2 = {'fieldQueries': 'includeInQuery',
@@ -1254,7 +1255,9 @@ if __name__ == '__main__':
         exit(-1)
     finalreport=""
     actionlist=""
-
+    if not os.path.exists("output"):
+      os.mkdir("output")
+      
     parser = argparse.ArgumentParser(description='Migrate fields configuration from CloudV1 to CloudV2')
     parser.add_argument('--env', required=True, type=Environment, choices=list(Environment))
     parser.add_argument('--v1_org_id', required=True)
