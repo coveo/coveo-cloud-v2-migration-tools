@@ -52,6 +52,7 @@ pip install jsbeautifier
 * Execute the following script:
 `migrate_v1_to_v2.py --env {DEV,QA,PROD} --v1_org_id V1_ORG_ID --v1_access_token V1_ACCESS_TOKEN --v2_org_id 
 V2_ORG_ID --v2_access_token V2_ACCESS_TOKEN `
+* REMARK: --env is lowercase!! (dev, qa, prod)
 * Look into output\ORG_FinalReport.txt for errors
 * Look into output\ORG_ActionList.txt for next steps
 
