@@ -56,6 +56,11 @@ V2_ORG_ID --v2_access_token V2_ACCESS_TOKEN `
 * Look into output\ORG_FinalReport.txt for errors
 * Look into output\ORG_ActionList.txt for next steps
 
+Example:
+```python
+python migrate_v1_to_v2.py --env prod --v1_org_id xxinc --v1_access_token 86926e-acd-418-b44-15cc0396 --v2_org_id wims7j1ne --v2_access_token x8da3-aa1-5f7-2b-d969e113
+```
+
 ## Partial Migration
 
 ### Migrate the settings of fields used in a CloudV1 source to CloudV2
