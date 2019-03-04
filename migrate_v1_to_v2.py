@@ -1513,13 +1513,15 @@ if __name__ == '__main__':
           finalreport += "\n\tWARNING: A/B tests are defined in pipeline: "+pipeline["name"]+", create them manually!!!"
           #print (json.dumps(pipeline))
         pipelineid=""
+        goToFinalReport = False
         if pipeline["name"]=="default":
           pipelineid=defaultpipelineid
         else:
           response = v2_client.pipeline_create(pipeline)
           if 'id' in response:
             pipelineid = response["id"]
-        if 'id' in response or pipeline["name"]=="default":
+            goToFinalReport =True
+        if goToFinalReport or pipeline["name"]=="default":
           #pipelineid = response["id"]
           finalreport += "\nCreated pipeline: "+pipeline["name"]+" in V2 with ID: "+pipelineid
           #get all statements

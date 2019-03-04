@@ -45,6 +45,7 @@ When done:
 ```python
 pip install jiphy
 pip install jsbeautifier
+pip install requests
 ```
 
 ### Execution
