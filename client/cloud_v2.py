@@ -79,6 +79,10 @@ class CloudV2(CloudClient):
       else:
         return self.do_post(f'rest/organizations/{self.org_id}/sources?rebuild=false&updateSecurityProviders=false',config)
 
+    def source_evict(self, source_id):
+        #/sources/src/configuration/salesforce/evict
+        return self.do_post(f'rest/organizations/{self.org_id}/sources/{source_id}/configuration/salesforce/evict',None)
+
     def schedule_create(self, source_id, fields: dict):
         return self.do_post(f'rest/organizations/{self.org_id}/sources/{source_id}/schedules', fields)
 

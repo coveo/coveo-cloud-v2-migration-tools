@@ -62,6 +62,11 @@ Example:
 python migrate_v1_to_v2.py --env prod --v1_org_id xxinc --v1_access_token 86926e-acd-418-b44-15cc0396 --v2_org_id wims7j1ne --v2_access_token x8da3-aa1-5f7-2b-d969e113
 ```
 
+Remark:
+Salesforce migrations must manually be fixed:
+* Update your Salesforce Refresh Token
+* Manually EVICT the source, see ActionList for the URL to execute
+
 ## Partial Migration
 
 ### Migrate the settings of fields used in a CloudV1 source to CloudV2
@@ -75,3 +80,6 @@ python migrate_v1_to_v2.py --env prod --v1_org_id xxinc --v1_access_token 86926e
 `copy_user_fields.py --env {DEV,QA,PROD} --v1_org_id V1_ORG_ID --v1_access_token V1_ACCESS_TOKEN --v2_org_id 
 V2_ORG_ID --v2_access_token V2_ACCESS_TOKEN [--dry-run]`
 
+### Changes
+V1.1 - 6 March 2019
+Evict Salesforce sources after creation. Will force the re-creation of the ObjectsToGet

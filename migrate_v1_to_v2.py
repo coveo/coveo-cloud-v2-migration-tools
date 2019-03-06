@@ -1412,6 +1412,14 @@ if __name__ == '__main__':
             else:
                 print('No fields to update.')
             #------------------------------------------------------------------------
+            #When Salesforce, call Evict to force the reload of the objectschema
+            #/sources/src/configuration/salesforce/evict
+            if "crawlerInstancetype" in v2source:
+              if v2source["crawlerInstancetype"]=="Connector.Salesforce2":
+                finalreport += "\n\tSalesforce Source must be Evicted, see actionlist."
+                #result = v2_client.source_evict(v2_source_id)
+                actionlist += f"\n\tAfter Refreshing token, execute in Swagger: https://platform.cloud.coveo.com/rest/organizations/{v2_org_id}/sources/{v2_source_id}/configuration/salesforce/evict."
+            #------------------------------------------------------------------------
             #Get Schedules and create them
             #First get the just created schedule and remove it
             v2_schedules = v2_client.schedule_get(v2_source_id)
