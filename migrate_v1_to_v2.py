@@ -1072,7 +1072,7 @@ def toPython(string, filename):
   string = re.sub(re.compile("PostConversion.HTMLOutputToOverride.WriteString",re.RegexFlag.MULTILINE|re.RegexFlag.DOTALL  ) ,"WriteHTMLOutput" ,string)
   string = re.sub(re.compile("PostConversion.TextToOverride.WriteString",re.RegexFlag.MULTILINE|re.RegexFlag.DOTALL  ) ,"WriteOutput" ,string)
   #DocumentInfo.GetFieldValue
-  string = re.sub(re.compile('DocumentInfo\.GetFieldValue\(("?\w*"?")\);'  ) ,"document.get_meta_data_value(\\1)[0]" ,string)
+  string = re.sub(re.compile('DocumentInfo\.GetFieldValue\(("?\w*"?)\);'  ) ,"document.get_meta_data_value(\\1)[0]" ,string)
   string = re.sub(re.compile("DocumentInfo\.(\w*)[ ]*=(.*);"  ) ,"document.add_meta_data({'\\1':\\2})" ,string)
   #DocumentInfo.SetFieldValue --> document.add_meta_data({"mylat2":str(i['Lat'])})
   #;$

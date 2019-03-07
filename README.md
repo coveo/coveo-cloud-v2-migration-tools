@@ -82,4 +82,6 @@ V2_ORG_ID --v2_access_token V2_ACCESS_TOKEN [--dry-run]`
 
 ### Changes
 V1.1 - 6 March 2019
-Evict Salesforce sources after creation. Will force the re-creation of the ObjectsToGet
+Evict Salesforce sources, added to report. Must be done after creation. Will force the re-creation of the ObjectsToGet.
+V1.2 - 7 March 2019
+Fixed parser Python, GetFieldValue
