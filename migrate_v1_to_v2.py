@@ -1450,7 +1450,7 @@ if __name__ == '__main__':
     #Add custom fields
     finalreport+="\n====================================================================================\n"
     dry_run=False
-    if yes_or_no("Continue with fields and pipelines?"):
+    if yes_or_no("Continue with fields?"):
       v1_user_fields = [field for field in v1_client.fields_get() if v1_field_is_user(field)]
       v1_user_fields_unique = v1_get_unique_fields(v1_user_fields)
       print (v1_user_fields_unique)
@@ -1461,9 +1461,13 @@ if __name__ == '__main__':
       v2_create_mapping_from_v1_fields(v2_client, v1_client.sources_get(), v1_fields_mapping, v2_client.sources_get(), dry_run)
       finalreport+= "\n\nUser Fields updated: "+json.dumps(v1_fields_mapping).replace('{"name":','\n{"name":')
       print('All mappings created.')
+    else:
+      finalreport+='\nUser skipped fields'
+      actionlist+='\nUser skipped fields'
 
       
 
+    if yes_or_no("Continue with pipelines?"):
       #Pipelines -----------------------------------------------------------------------------------------------
       #{'id': 'b1bf1ba5-0d6d-4c0b-923c-df388e4b0f87', 'name': 'Copy of besttechCommunityTuned (1)', 'isDefault': False, 
       #  'description': 'Pipeline for the besttech community with Reveal', 'filter': None, 'splitTestName': None, 
@@ -1493,12 +1497,28 @@ if __name__ == '__main__':
         v2_client.statement_delete(statement["id"])
 
       v1_statements = v1_client.statements_get()
+      #TEST: in order to prevent "ERROR in creating query pipeline: PortalSearch, error: The condition is already assigned to a different pipeline." trying to not create conditions. This assumes that other statements (not pipeline itself) will carry and assign their own conditions anyway.
+      statements_map_v1v2_byv1id = {}
+      #e.g. ["v1id": {"v1": {...}, "v2": {...}}]
+
       for statement in v1_statements["statements"]:
         #print (statement)
         print ("Creating condition statement "+statement["id"])
-        response = v2_client.statement_create(statement)
+        #clone to keep reference 
+        statement_v1v2 = {
+          "v1": statement,
+          "v2": statement.copy()
+        }
+        #strip id to get a new
+        statement_v1v2['v2'].pop('key', None)
+        #store in map
+        statements_map_v1v2_byv1id[statement['id']] = statement_v1v2
+
+        response = v2_client.statement_create(statement_v1v2['v2'])
         if 'id' in response:
+          #set our new id
           finalreport += "Created condition statement: "+statement["id"]+" in V2 with ID: "+response["id"]
+          statement_v1v2['v2']['id'] = response['id']
         else:
           pipelineid = "ERROR: "+response["message"]
           print (pipelineid)
@@ -1525,6 +1545,9 @@ if __name__ == '__main__':
         if pipeline["name"]=="default":
           pipelineid=defaultpipelineid
         else:
+          condition_to_replace = pipeline['condition']
+          if condition_to_replace:
+            pipeline['condition'] = statements_map_v1v2_byv1id[condition_to_replace['id']]['v2']
           response = v2_client.pipeline_create(pipeline)
           if 'id' in response:
             pipelineid = response["id"]
@@ -1533,38 +1556,42 @@ if __name__ == '__main__':
           #pipelineid = response["id"]
           finalreport += "\nCreated pipeline: "+pipeline["name"]+" in V2 with ID: "+pipelineid
           #get all statements
-          v1_statements = v1_client.pipeline_statements_get(pipeline['id'])
-          for statement in v1_statements['statements']:
-            # {'id': 'c8d1b77f-a2b3-475d-9b85-ff5d144e47d9', 'description': '', 'feature': 'top', 
-            # 'definition': 'when $query contains `enable netflix` then top `@sysurihash="YShRcUQrh1TvHQ3E"`', 
-            # 'parent': {'id': '4c9a2e17-f04a-4fbb-a99c-a71813d05b80', 'description': '', 'definition': 'when $searchHub is "AgentPanel"', 
-            # 'detailed': {'condition': {'operator': 'is', 'left': {'object': 'searchHub'}, 'right': 'AgentPanel'}}, 'childrenCount': 0, 
-            # 'feature': 'when', 'parent': None, 'condition': None, 'position': 0, 'ready': True},
-            #  'condition': {'id': '4c9a2e17-f04a-4fbb-a99c-a71813d05b80', 'description': '', 'definition': 'when $searchHub is "AgentPanel"', 
-            # 'detailed': {'condition': {'operator': 'is', 'left': {'object': 'searchHub'}, 'right': 'AgentPanel'}}, 
-            # 'childrenCount': 0, 'feature': 'when', 'parent': None, 'condition': None, 'position': 0, 'ready': True}, 
-            # 'position': 14, 'ready': False, 'detailed': {'condition': {'operator': 'contains', 'left': {'object': 'query'}, 'right': 'enable netflix'}, 
-            # 'statement': {'expressions': ['@sysurihash="YShRcUQrh1TvHQ3E"']}}, 'childrenCount': 0}
-            #Create statement in V2
-            #print (statement)
-            #Get The details
-            statement = (v1_client.pipeline_statement_details_get(pipeline["id"], statement["id"]))
-            if "parent" in statement:
-              if statement["parent"]:
-                if "id" in statement["parent"]:
-                  statement["parent"]=statement["parent"]["id"]
-            print ("Creating pipeline - statement "+pipeline["name"]+"("+pipelineid+"), "+statement["id"])
-            #statement["id"]=""
-            #print (json.dumps(statement))
-            response = v2_client.pipeline_statement_create(pipelineid, statement)
-            if 'id' in response:
-              statementid = response["id"]
-              finalreport += "\nCreated statement: "+pipeline["name"]+" in V2 with ID: "+statementid
-            else:
-              statementid = "ERROR: "+response["message"]
-              print (statementid)
-              finalreport += "\nERROR in creating query pipeline - STATEMENT: "+pipeline["name"]+" ("+pipeline["id"]+"), error: "+response["message"]
-              actionlist += "\nERROR in creating query pipeline - STATEMENT: "+pipeline["name"]+" ("+pipeline["id"]+"), CHECK LOGS"
+          if yes_or_no("Create statements for pipeline " + pipeline["name"] + "?"):
+            v1_statements = v1_client.pipeline_statements_get(pipeline['id'])
+            for statement in v1_statements['statements']:
+              # {'id': 'c8d1b77f-a2b3-475d-9b85-ff5d144e47d9', 'description': '', 'feature': 'top', 
+              # 'definition': 'when $query contains `enable netflix` then top `@sysurihash="YShRcUQrh1TvHQ3E"`', 
+              # 'parent': {'id': '4c9a2e17-f04a-4fbb-a99c-a71813d05b80', 'description': '', 'definition': 'when $searchHub is "AgentPanel"', 
+              # 'detailed': {'condition': {'operator': 'is', 'left': {'object': 'searchHub'}, 'right': 'AgentPanel'}}, 'childrenCount': 0, 
+              # 'feature': 'when', 'parent': None, 'condition': None, 'position': 0, 'ready': True},
+              #  'condition': {'id': '4c9a2e17-f04a-4fbb-a99c-a71813d05b80', 'description': '', 'definition': 'when $searchHub is "AgentPanel"', 
+              # 'detailed': {'condition': {'operator': 'is', 'left': {'object': 'searchHub'}, 'right': 'AgentPanel'}}, 
+              # 'childrenCount': 0, 'feature': 'when', 'parent': None, 'condition': None, 'position': 0, 'ready': True}, 
+              # 'position': 14, 'ready': False, 'detailed': {'condition': {'operator': 'contains', 'left': {'object': 'query'}, 'right': 'enable netflix'}, 
+              # 'statement': {'expressions': ['@sysurihash="YShRcUQrh1TvHQ3E"']}}, 'childrenCount': 0}
+              #Create statement in V2
+              #print (statement)
+              #Get The details
+              statement = (v1_client.pipeline_statement_details_get(pipeline["id"], statement["id"]))
+              if "parent" in statement:
+                if statement["parent"]:
+                  if "id" in statement["parent"]:
+                    statement["parent"]=statement["parent"]["id"]
+              print ("Creating pipeline - statement "+pipeline["name"]+"("+pipelineid+"), "+statement["id"])
+              #statement["id"]=""
+              #print (json.dumps(statement))
+              response = v2_client.pipeline_statement_create(pipelineid, statement)
+              if 'id' in response:
+                statementid = response["id"]
+                finalreport += "\nCreated statement: "+pipeline["name"]+" in V2 with ID: "+statementid
+              else:
+                statementid = "ERROR: "+response["message"]
+                print (statementid)
+                finalreport += "\nERROR in creating query pipeline - STATEMENT: "+pipeline["name"]+" ("+pipeline["id"]+"), error: "+response["message"]
+                actionlist += "\nERROR in creating query pipeline - STATEMENT: "+pipeline["name"]+" ("+pipeline["id"]+"), CHECK LOGS"
+          else:
+            finalreport+='\nUser skips creating statements'
+            actionlist+='\nUser skips creating statements'
 
 
         else:
@@ -1572,6 +1599,9 @@ if __name__ == '__main__':
           print (pipelineid)
           finalreport += "\nERROR in creating query pipeline: "+pipeline["name"]+", error: "+response["message"]
           actionlist += "\nERROR in creating query pipeline: "+pipeline["name"]+", CHECK LOGS"
+    else:
+      finalreport+='\nUser skipped pipelines'
+      actionlist+='\nUser skipped pipelines'
 
 
 
