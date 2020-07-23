@@ -96,6 +96,9 @@ class CloudV2(CloudClient):
       #https://platform.cloud.coveo.com/rest/ua/v15/dimensions/custom?org=asdf&name=myname&event=searches&updatePastEvents=false
         return self.do_post(f'rest/ua/v15/dimensions/custom?org={self.org_id}&name={name}{event}', fields)
 
+    def dimensions_get(self):
+        return self.do_get(f'rest/ua/v15/dimensions/?org={self.org_id}&includeOnlyParents=true')
+
     def pipeline_create(self, fields: dict):
         return self.do_post(f'rest/search/v1/admin/pipelines/?organizationId={self.org_id}', fields)
 
